@@ -6,7 +6,17 @@
 # manifesto_df["pervote"] = manifesto_df["pervote"] / 100
 # manifesto_df["year"] = pd.to_datetime(manifesto_df["edate"]).dt.year
 setwd("~/Documents/manifestos/")
+library(tidyr)
+library(ggplot2)
 
 manifesto.df <- read.csv("MPDataset_MPDS2019b.csv")
-needed.columns <- c('edate', 'countryname', 'pervote', 'rile', 'party', 'partyabbrev')
-s <- na.omit(manifesto.df, cols="countryname")
+manifesto.df <- manifesto.df %>% drop_na(c("rile", "pervote"))
+manifesto.df$rile <- scale(manifesto.df$rile)
+manifesto.df$pervote <- manifesto.df$pervote / 100
+manifesto.df$date <- as.Date(manifesto.df$edate, "%d/%m/%y")
+manifesto.df$year <- as.numeric(format(manifesto.df$date, "%Y"))
+
+qplot()
+
+#needed.columns <- c('edate', 'countryname', 'pervote', 'rile', 'party', 'partyabbrev')
+#s <- na.omit(manifesto.df, cols="countryname")
