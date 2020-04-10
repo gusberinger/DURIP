@@ -20,8 +20,9 @@ manifesto <- manifesto %>% mutate(year = as.numeric(format(date, "%Y")))
 manifesto <- select(manifesto, country:partyabbrev, date, year, pervote, rile)
 manifesto <- manifesto %>% filter(!is.na(rile) | pervote > .10)
 
+winner <- manifesto %>% group_by(date, year) %>% top_n(1, pervote)
+
 poldf <- data.frame(year=as.numeric(),
-                    country=as.integer(), 
                     countryname=character(), 
                     manifesto.polarization=double(),
                     stringsAsFactors=FALSE)
@@ -34,7 +35,7 @@ for (date_ in unique(manifesto$date)) {
     losers <- country.df[-c(winner.index), ]
     if (sum(country.df$pervote, na.rm = TRUE) > .90) {
       polarization <- (winner$rile - sum((losers$pervote * losers$rile) / (1 - winner$pervote))) ** 2
-      poldf[nrow(poldf) + 1,] <- list(winner$year, countryid, as.character(winner$countryname), polarization)
+      poldf[nrow(poldf) + 1,] <- list(winner$year, as.character(winner$countryname), polarization)
     }
   }
 }
@@ -45,13 +46,17 @@ table(is.na(poldf$manifesto.polarization))
 
 # check with parlgov
 parl <- read.csv("parlgov_cabinet.csv")
-parl <- parl %>% mutate(date = as.Date(election_date, "%Y-%m-%d"))
 parl <- rename(parl, "countryname" = "country_name")
-setdiff(unique(poldf$countryname), unique(parl$country_name))
+parl <- parl %>% mutate(date = as.Date(election_date, "%Y-%m-%d"))
+parl <- parl %>% mutate(year = as.numeric(format(date, "%Y")))
+# parl <- parl %>% select(countryname, year, election_date, party_name)
+parl <- parl %>% filter(prime_minister == 1)
+parl <- parl %>% distinct()
+parlwinner <- parl %>% group_by(countryname, election_date) %>% top_n(1, start_date)
 
-
-compare.leader <- merge(parl, poldf, by="")
-
+compare.leader <- merge(parlwinner, winner)
+compare.leader <- compare.leader %>% select(countryname, date, party_name_english, partyname)
+View(compare.leader)
 
 dpi <- read_dta("DPI2017.dta")
 dpi <- rename(dpi, "dpi.polarization" = "polariz")

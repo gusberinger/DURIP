@@ -1,0 +1,58 @@
+rm(list=ls())
+gc()
+setwd("~/Documents/DURIP/")
+
+
+# TODO: setup a github repo
+library(tidyr)
+library(MASS)
+library(dplyr)
+library(ggplot2)
+library(haven)
+library(purrr)
+
+
+# import manifesto data
+manifesto <- read.csv("MPDataset_MPDS2019b.csv")
+manifesto <- manifesto %>% mutate(rile = c(scale(rile)))
+manifesto <- manifesto %>% mutate(pervote = pervote / 100)
+manifesto <- manifesto %>% mutate(date = as.Date(edate, "%d/%m/%Y"))
+manifesto <- manifesto %>% mutate(year = as.numeric(format(date, "%Y")))
+manifesto <- select(manifesto, country:partyabbrev, date, year, pervote, rile)
+manifesto <- manifesto %>% drop_na(pervote)
+manifesto <- manifesto %>% filter(!is.na(rile) | pervote > .10)
+
+# lots of elections have incomplete pervote
+manifesto %>% 
+  group_by(countryname, date) %>% 
+  summarize(totvotes = sum(pervote, na.rm=TRUE))
+
+
+# define the polarization for a distinct election
+get_polarization <- function(df) {
+  winner <- df %>% filter(pervote == max(pervote))
+  losers <- df %>% filter(pervote < max(pervote))
+  polarization <- (winner$rile - sum((losers$pervote * losers$rile) / (1 - winner$pervote))) ** 2
+  return(polarization)
+}
+
+# map polarization to each election group
+manifesto.scores <- manifesto %>% 
+  group_by(countryname, date) %>% 
+  nest() %>%
+  mutate(polarization = map(data, get_polarization)) %>%
+  unnest(polarization) %>%
+  select(countryname, date, polarization)
+
+
+
+parl <- read.csv("parlgov_cabinet.csv")
+parl <- rename(parl, "countryname" = "country_name")
+parl <- parl %>% mutate(date = as.Date(election_date, "%Y-%m-%d"))
+parl <- parl %>% mutate(year = as.numeric(format(date, "%Y")))
+# parl <- parl %>% select(countryname, year, election_date, party_name)
+parl <- parl %>% filter(prime_minister == 1)
+parl <- parl %>% distinct()
+parlwinner <- parl %>% group_by(countryname, election_date) %>% top_n(1, start_date)
+
+
