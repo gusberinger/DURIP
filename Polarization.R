@@ -1,22 +1,24 @@
-setwd("~/Documents/manifestos/")
+#!diagnostics off
 rm(list=ls())
 gc()
+setwd("~/Documents/DURIP/")
+
 
 library(tidyr)
+library(MASS)
 library(dplyr)
 library(ggplot2)
 library(haven)
-library(MASS)
-library(texreg)
+library(zoo)
 
 
-manifesto.df <- read.csv("MPDataset_MPDS2019b.csv")
-manifesto.df <- manifesto.df %>% drop_na(c("rile", "pervote"))
-manifesto.df$rile <- scale(manifesto.df$rile)
-manifesto.df$pervote <- manifesto.df$pervote / 100
-manifesto.df$date <- as.Date(manifesto.df$edate, "%d/%m/%Y")
-manifesto.df$year <- as.numeric(format(manifesto.df$date, "%Y"))
-manifesto.df <- manifesto.df[, c(1, 2, 3, 4, 5, 6, 175, 7:174)]
+# import manifesto data
+manifesto <- read.csv("MPDataset_MPDS2019b.csv")
+manifesto <- manifesto %>% mutate(rile = c(scale(rile)))
+manifesto <- manifesto %>% mutate(pervote = pervote / 100)
+manifesto <- manifesto %>% mutate(date = as.Date(edate, "%d/%m/%Y"))
+manifesto <- manifesto %>% mutate(year = as.numeric(format(date, "%Y")))
+manifesto <- select(manifesto, country:partyabbrev, date, year, pervote, rile)
 
 
 poldf <- data.frame(year=as.numeric(),
@@ -26,8 +28,8 @@ poldf <- data.frame(year=as.numeric(),
                     stringsAsFactors=FALSE)
 
 
-for (x in unique(manifesto.df$date)) {
-  election.df <- subset(manifesto.df, date == x, select = c("country", "countryname", "partyabbrev", "pervote", "rile", "year"))
+for (x in unique(manifesto$date)) {
+  election.df <- subset(manifesto, date == x, select = c("country", "countryname", "partyabbrev", "pervote", "rile", "year"))
   for (countryid in unique(election.df$country)) {
     country.df <- subset(election.df, country == countryid)
     winner.index <- which.max(country.df$pervote)
@@ -38,40 +40,83 @@ for (x in unique(manifesto.df$date)) {
     poldf[nrow(poldf) + 1,] <- list(winner$year, countryid, as.character(winner$countryname), polarization)
   }
 }
-poldf <- poldf[order(poldf$country, poldf$year),]
-qplot(year, polarization, data = subset(poldf, countryname == "France"), geom="line")
+poldf <- poldf %>% arrange(countryname, year)
 head(poldf)
 
-dpi.df <- read_dta("DPI2017.dta")
-dpi.df <- dpi.df %>% rename(dpi.polarization = "polariz")
-dpi.df <- dpi.df[, c("dpi.polarization", "countryname", "year")]
-dpi.df <- dpi.df %>% drop_na("dpi.polarization")
-dpi.df$dpi.polarization <- ordered(as.factor(dpi.df$dpi.polarization))
+dpi <- read_dta("DPI2017.dta")
+dpi <- rename(dpi, "dpi.polarization" = "polariz")
+dpi <- dpi %>% mutate(dpi.polarization = replace(dpi.polarization, dpi.polarization == -999, NA))
+dpi <- dpi %>% select(dpi.polarization, countryname, year)
+dpi <- dpi %>% drop_na(dpi.polarization)
+dpi <- dpi %>% mutate(ordered(as.factor(dpi.polarization)))
 
 
-# no integer country code in DPI
-dpi.df$countryname[dpi.df$countryname == "Czech Rep."] <- "Czech Republic"
-dpi.df$countryname[dpi.df$countryname == "GDR"] <- "German Democratic Republic"
-dpi.df$countryname[dpi.df$countryname == "FRG/Germany"] <- "Germany"
-dpi.df$countryname[dpi.df$countryname == "USA"] <- "United States"
-dpi.df$countryname[dpi.df$countryname == "UK"] <- "United Kingdom"
-dpi.df$countryname[dpi.df$countryname == "Macedonia"] <- "North Macedonia"
-dpi.df$countryname[dpi.df$countryname == "Bosnia-Herz"] <- "Bosnia-Herzegovina"
-dpi.df$countryname[dpi.df$countryname == "S. Africa"] <- "South Africa"
-dpi.df$countryname[dpi.df$countryname == "S. Korea"] <- "South Korea"
+# create some graphs
+qplot(manifesto$year) + xlab("Year") + ylab("Count")
+ggsave("images/year.png")
+qplot(manifesto$rile) + xlab("Standarized rile") + ylab("Count")
+ggsave("images/standardrile.png")
+
+# match up DPI
+dpi$countryname[dpi$countryname == "Czech Rep."] <- "Czech Republic"
+dpi$countryname[dpi$countryname == "GDR"] <- "German Democratic Republic"
+dpi$countryname[dpi$countryname == "FRG/Germany"] <- "Germany"
+dpi$countryname[dpi$countryname == "USA"] <- "United States"
+dpi$countryname[dpi$countryname == "UK"] <- "United Kingdom"
+dpi$countryname[dpi$countryname == "Macedonia"] <- "North Macedonia"
+dpi$countryname[dpi$countryname == "Bosnia-Herz"] <- "Bosnia-Herzegovina"
+dpi$countryname[dpi$countryname == "S. Africa"] <- "South Africa"
+dpi$countryname[dpi$countryname == "S. Korea"] <- "South Korea"
 
 
-merged <- merge(poldf, dpi.df)
-probit.model <- polr(dpi.polarization~manifesto.polarization, data=merged, method="probit")
-p <- 2*pt(-abs(1.761),df=nrow(merged) - 1)
-summary(probit.model)
+# match up vdem
+vdem <- readRDS("Country_Year_V-Dem_Full+others_R_v9/V-Dem-CY-Full+Others-v9.rds")
+vdem$country <- vdem$country_name
+vdem <- vdem[, c("country", "COWcode", "year", "v2smpolsoc")]
+vdem <- vdem %>% drop_na(c("v2smpolsoc"))
+vdem$country[vdem$country == "United States of America"] <- "United States"
+vdem$country[vdem$country == "Macedonia"] <- "North Macedonia"
+vdem$country[vdem$country == "Bosnia and Herzegovina"] <- "Bosnia-Herzegovina"
 
 
-texreg(probit.model,
-       stars = c(0.01,  0.05, 0.1),
-       booktabs=TRUE,
-       float.pos = "h!",
-       dcolumn = TRUE,
-       digits=4,
-       custom.model.names = "Ordered Probit",
-       custom.coef.names = "Manifesto Polarization")
+# compare manifesto with dpi
+merged <- merge(poldf, dpi)
+manifesto.dpi.model <- polr(dpi.polarization~manifesto.polarization, data = subset(merged, year > 1990))
+summary(manifesto.dpi.model)
+extract(manifesto.dpi.model)
+texreg(manifesto.dpi.model, 
+       booktabs = TRUE,
+       custom.coef.names = c("Manifesto Polarization"))
+
+
+# print images
+for (c in unique(merged$countryname)) {
+  df <- subset(merged, countryname == c)
+  
+  if (nrow(df) > 3) {
+    ggplot(df, aes(x=year)) +
+      geom_point(aes(y=manifesto.polarization), color="blue") +
+      geom_point(aes(y=as.numeric(as.character(dpi.polarization))), color="red") +
+      ylab("Polarization") + xlab("Year") + ggtitle(c)
+    
+    ggsave(file = paste("images-dpi-manifestos-point/", c, ".png", sep=""))
+    
+    ggplot(df, aes(x=year)) +
+      geom_line(aes(y=manifesto.polarization), color="blue") +
+      geom_line(aes(y=as.numeric(as.character(dpi.polarization))), color="red") +
+      ylab("Polarization") + xlab("Year") + ggtitle(c)
+    
+    ggsave(file = paste("images-dpi-manifestos-line/", c, ".png", sep=""))
+  }
+}
+
+
+# compare vdem with dpi
+merged <- merge(dpi, vdem)
+# dpi.vdem.model <- polr(dpi.polarization~v2smpolsoc, data = merged)
+dpi.vdem.model <- lm(v2smpolsoc~as.numeric(as.character(dpi.polarization)), data=merged)
+summary(dpi.vdem.model)
+extract(dpi.vdem.model)
+head(merged)
+
+
