@@ -45,14 +45,18 @@ manifesto.scores <- manifesto %>%
   select(countryname, date, polarization)
 
 
-
+# verify the data with parl
 parl <- read.csv("parlgov_cabinet.csv")
-parl <- rename(parl, "countryname" = "country_name")
+parl <- rename(parl, countryname = "country_name", parl_party = "party_name_english")
 parl <- parl %>% mutate(date = as.Date(election_date, "%Y-%m-%d"))
 parl <- parl %>% mutate(year = as.numeric(format(date, "%Y")))
-# parl <- parl %>% select(countryname, year, election_date, party_name)
 parl <- parl %>% filter(prime_minister == 1)
 parl <- parl %>% distinct()
-parlwinner <- parl %>% group_by(countryname, election_date) %>% top_n(1, start_date)
+parl.winner <- parl %>% group_by(countryname, election_date) %>% top_n(1, start_date)
 
+manifesto.winner <- manifesto %>% group_by(countryname, date) %>% top_n(1, pervote)
+compare.leader <- merge(parl.winner, manifesto.winner)
+compare.leader <- compare.leader %>% 
+  select(countryname, date, parl_party, partyname) %>%
+  View()
 
