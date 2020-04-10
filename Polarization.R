@@ -51,13 +51,6 @@ dpi <- dpi %>% select(dpi.polarization, countryname, year)
 dpi <- dpi %>% drop_na(dpi.polarization)
 dpi <- dpi %>% mutate(ordered(as.factor(dpi.polarization)))
 
-
-# create some graphs
-qplot(manifesto$year) + xlab("Year") + ylab("Count")
-ggsave("images/year.png")
-qplot(manifesto$rile) + xlab("Standarized rile") + ylab("Count")
-ggsave("images/standardrile.png")
-
 # match up DPI
 dpi$countryname[dpi$countryname == "Czech Rep."] <- "Czech Republic"
 dpi$countryname[dpi$countryname == "GDR"] <- "German Democratic Republic"
@@ -119,5 +112,13 @@ dpi.vdem.model <- lm(v2smpolsoc~as.numeric(as.character(dpi.polarization)), data
 summary(dpi.vdem.model)
 extract(dpi.vdem.model)
 head(merged)
+
+
+
+# create some graphs
+qplot(manifesto$year) + xlab("Year") + ylab("Count")
+ggsave("images/year.png")
+qplot(manifesto$rile) + xlab("Standarized rile") + ylab("Count")
+ggsave("images/standardrile.png")
 
 
