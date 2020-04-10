@@ -19,27 +19,30 @@ manifesto <- manifesto %>% mutate(date = as.Date(edate, "%d/%m/%Y"))
 manifesto <- manifesto %>% mutate(year = as.numeric(format(date, "%Y")))
 manifesto <- select(manifesto, country:partyabbrev, date, year, pervote, rile)
 
+# remove rows where now
+manifesto <- manifesto %>% filter(!is.na(rile) | pervote > .1)
 
 poldf <- data.frame(year=as.numeric(),
                     country=as.integer(), 
                     countryname=character(), 
                     manifesto.polarization=double(),
                     stringsAsFactors=FALSE)
-
-
-for (x in unique(manifesto$date)) {
-  election.df <- subset(manifesto, date == x, select = c("country", "countryname", "partyabbrev", "pervote", "rile", "year"))
-  for (countryid in unique(election.df$country)) {
-    country.df <- subset(election.df, country == countryid)
+for (date_ in unique(manifesto$date)) {
+  election.df <- subset(manifesto, date == date_, select = c("country", "countryname", "partyabbrev", "pervote", "rile", "year"))
+  for (countryname_ in unique(election.df$countryname)) {
+    country.df <- subset(election.df, countryname == countryname_)
     winner.index <- which.max(country.df$pervote)
     winner <- country.df[winner.index,]
     losers <- country.df[-c(winner.index), ]
-    losers$t <- losers$pervote * losers$rile
-    polarization <- (winner$rile - sum((losers$pervote * losers$rile) / (1 - winner$pervote))) ** 2
-    poldf[nrow(poldf) + 1,] <- list(winner$year, countryid, as.character(winner$countryname), polarization)
+    if (sum(country.df$pervote, na.rm = TRUE) > .90) {
+      polarization <- (winner$rile - sum((losers$pervote * losers$rile) / (1 - winner$pervote))) ** 2
+      poldf[nrow(poldf) + 1,] <- list(winner$year, countryid, as.character(winner$countryname), polarization)
+    }
   }
 }
+poldf <- poldf %>% arrange(countryname, year)
 head(poldf)
+table(is.na(poldf$manifesto.polarization))
 
 dpi <- read_dta("DPI2017.dta")
 dpi <- rename(dpi, "dpi.polarization" = "polariz")
