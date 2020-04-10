@@ -18,9 +18,7 @@ manifesto <- manifesto %>% mutate(pervote = pervote / 100)
 manifesto <- manifesto %>% mutate(date = as.Date(edate, "%d/%m/%Y"))
 manifesto <- manifesto %>% mutate(year = as.numeric(format(date, "%Y")))
 manifesto <- select(manifesto, country:partyabbrev, date, year, pervote, rile)
-
-# remove rows where now
-manifesto <- manifesto %>% filter(!is.na(rile) | pervote > .1)
+manifesto <- manifesto %>% filter(!is.na(rile) | pervote > .10)
 
 poldf <- data.frame(year=as.numeric(),
                     country=as.integer(), 
@@ -43,6 +41,17 @@ for (date_ in unique(manifesto$date)) {
 poldf <- poldf %>% arrange(countryname, year)
 head(poldf)
 table(is.na(poldf$manifesto.polarization))
+
+
+# check with parlgov
+parl <- read.csv("parlgov_cabinet.csv")
+parl <- parl %>% mutate(date = as.Date(election_date, "%Y-%m-%d"))
+parl <- rename(parl, "countryname" = "country_name")
+setdiff(unique(poldf$countryname), unique(parl$country_name))
+
+
+compare.leader <- merge(parl, poldf, by="")
+
 
 dpi <- read_dta("DPI2017.dta")
 dpi <- rename(dpi, "dpi.polarization" = "polariz")
