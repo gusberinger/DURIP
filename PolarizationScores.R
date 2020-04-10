@@ -53,10 +53,12 @@ parl <- parl %>% mutate(year = as.numeric(format(date, "%Y")))
 parl <- parl %>% filter(prime_minister == 1)
 parl <- parl %>% distinct()
 parl.winner <- parl %>% group_by(countryname, election_date) %>% top_n(1, start_date)
-
 manifesto.winner <- manifesto %>% group_by(countryname, date) %>% top_n(1, pervote)
 compare.leader <- merge(parl.winner, manifesto.winner)
 compare.leader <- compare.leader %>% 
   select(countryname, date, parl_party, partyname) %>%
   View()
+
+
+
 
