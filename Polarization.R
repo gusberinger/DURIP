@@ -1,4 +1,3 @@
-#!diagnostics off
 rm(list=ls())
 gc()
 setwd("~/Documents/DURIP/")
@@ -40,7 +39,6 @@ for (x in unique(manifesto$date)) {
     poldf[nrow(poldf) + 1,] <- list(winner$year, countryid, as.character(winner$countryname), polarization)
   }
 }
-poldf <- poldf %>% arrange(countryname, year)
 head(poldf)
 
 dpi <- read_dta("DPI2017.dta")
