@@ -3,13 +3,12 @@ gc()
 setwd("~/Documents/DURIP/")
 
 
-library(tidyr)
 library(MASS)
-library(dplyr)
+library(tidyverse)
 library(ggplot2)
 library(ggthemes)
 library(haven)
-library(purrr)
+
 
 
 # import manifesto data
@@ -68,5 +67,5 @@ manifesto %>%
   ggplot(aes(rile)) + geom_histogram() + facet_wrap(~countryname)
 
 manifesto.scores %>% filter(year > 1980) %>% filter(any(polarization > 2)) %>% group_by(countryname) %>% filter(n() > 6) %>%
-  ggplot(aes(x = year, y = polarization)) + geom_line() + facet_wrap(~countryname)
+  ggplot(aes(x = date, y = polarization)) + geom_line() + facet_wrap(~countryname)
 
