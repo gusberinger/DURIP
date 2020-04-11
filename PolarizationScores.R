@@ -18,7 +18,7 @@ manifesto <- manifesto %>% mutate(rile = c(scale(rile)))
 manifesto <- manifesto %>% mutate(pervote = pervote / 100)
 manifesto <- manifesto %>% mutate(date = as.Date(edate, "%d/%m/%Y"))
 manifesto <- manifesto %>% mutate(year = as.numeric(format(date, "%Y")))
-manifesto <- select(manifesto, country:partyabbrev, date, year, pervote, rile)
+manifesto <- manifesto %>% select(countryname, party:partyabbrev, date, year, pervote, rile)
 manifesto <- manifesto %>% drop_na(pervote)
 manifesto <- manifesto %>% filter(!is.na(rile) | pervote > .10)
 
