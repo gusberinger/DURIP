@@ -64,29 +64,37 @@ get_polarization <- function(df, winner_name) {
 manifesto.scores <- manifesto %>% 
   group_by(countryname, date) %>% 
   nest() %>%
-  mutate(naive_winner = map(.x = data, .f = get_naive_winner),
+  mutate(naive_winner = map(data, get_naive_winner),
+         # naive_winner = unlist(naive_winner),
          parl_winner = map2(countryname, date, get_parl_winner),
          winner = coalesce(parl_winner, naive_winner),
          polarization = map2_dbl(data, winner, get_polarization),
          year = as.numeric(format(date, "%Y"))) %>%
   arrange(countryname, date)
+
 manifesto.scores <- manifesto.scores %>% mutate(year = as.numeric(format(date, "%Y")))
 
 
 ## Verify Data with Parl ---------------------------------
 parl <- read.csv("data/parlgov_cabinet.csv")
-parl <- rename(parl, countryname = "country_name", parl_party = "party_name_english")
-parl <- parl %>% mutate(date = as.Date(election_date, "%Y-%m-%d"))
-parl <- parl %>% mutate(year = as.numeric(format(date, "%Y")))
-parl <- parl %>% filter(prime_minister == 1)
-parl <- parl %>% distinct()
-parl.winner <- parl %>% group_by(countryname, election_date) %>% top_n(1, start_date)
+parl <- rename(parl, countryname = "country_name")
+parl <- parl %>%
+  filter(prime_minister == 1) %>%
+  mutate(date = as.Date(election_date, "%Y-%m-%d"),
+         year = as.numeric(format(date, "%Y")))
+  distinct()
 
-manifesto.winner <- manifesto.scores %>% select()
-compare.leader <- merge(parl.winner, manifesto.winner)
+parl.winner <- parl %>% 
+  group_by(countryname, date) %>%
+  top_n(1, start_date) %>% select(countryname, date, party_name_english)
+manifesto.scores$naive_winner <- unlist(manifesto.scores$naive_winner)
+manifesto.winner <- manifesto.scores %>% select(countryname, date, naive_winner)
+compare.leader <- merge(parl.winner, manifesto.winner) %>%
+  select(countryname, date, naive_winner, party_name_english)
 
 format_partyname <- function(text) {
   text = as.character(text)
+  text = str_replace(text, "Austrian People's Party", "Österreichische Volkspartei")
   text = str_to_lower(text)
   text = str_replace(text, "party", "")
   text = str_replace(text, "['’’']", "")
@@ -94,12 +102,10 @@ format_partyname <- function(text) {
   return(text)
 }
 
-compare.leader <- compare.leader %>% 
-  select(countryname, date, parl_party, party_name)
-diff <- compare.leader %>% 
-  filter(format_partyname(parl_party) != format_partyname(party_name)) %>%
+compare.leader %>% 
+  filter(format_partyname(party_name_english) != format_partyname(party_name)) %>%
   filter(countryname != "Ireland") %>%
-  filter(countryname != "Italy")
+  filter(countryname != "Italy") %>% View()
 
 
 
