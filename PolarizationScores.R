@@ -95,9 +95,9 @@ format_partyname <- function(text) {
 }
 
 compare.leader <- compare.leader %>% 
-  select(countryname, date, parl_party, partyname)
+  select(countryname, date, parl_party, party_name)
 diff <- compare.leader %>% 
-  filter(format_partyname(parl_party) != format_partyname(partyname)) %>%
+  filter(format_partyname(parl_party) != format_partyname(party_name)) %>%
   filter(countryname != "Ireland") %>%
   filter(countryname != "Italy")
 
