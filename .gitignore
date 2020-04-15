@@ -5,3 +5,5 @@
 Durip-Notes.org
 images*
 manifesto_apikey.txt
+*.Rproj
+.Rproj.user
